@@ -1,6 +1,5 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -40,7 +39,7 @@ class CustomForecastModelTest(TestCase):
         """Тест уникального ограничения на город и дату"""
         CustomForecast.objects.create(**self.valid_data)
 
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(ValidationError):
             CustomForecast.objects.create(**self.valid_data)
 
     def test_update_existing_forecast(self):
@@ -90,7 +89,7 @@ class CustomForecastModelTest(TestCase):
         invalid_data = self.valid_data.copy()
         invalid_data["city"] = "moscow"
 
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(ValidationError):
             CustomForecast.objects.create(**invalid_data)
 
     def test_past_date_allowed(self):

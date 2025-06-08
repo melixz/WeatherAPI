@@ -109,6 +109,8 @@ def handle_external_api_error(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except CityNotFoundException:
+            raise
         except Exception as e:
             logger.error(f"External API error in {func.__name__}: {e}")
             raise ExternalAPIException(f"Не удалось получить данные о погоде: {str(e)}")

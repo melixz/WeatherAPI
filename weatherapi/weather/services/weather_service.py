@@ -55,11 +55,15 @@ class WeatherService:
         """
         from ..models import CustomForecast
 
+        city = city.strip().title() if city else city
+
         forecast, created = CustomForecast.objects.update_or_create(
             city=city,
             date=date_obj,
             defaults={"min_temperature": min_temp, "max_temperature": max_temp},
         )
+        forecast.full_clean()
+        forecast.save()
 
         action = "создан" if created else "обновлен"
         logger.info(f"Custom forecast {action} for {city} on {date_obj}")

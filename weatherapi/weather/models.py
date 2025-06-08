@@ -53,10 +53,10 @@ class CustomForecast(models.Model):
             models.Index(fields=["city", "date"]),
             models.Index(fields=["date"]),
         ]
-        ordering = ["-date", "city"]
+        ordering = ["date", "city"]
 
     def __str__(self):
-        return f"{self.city} - {self.date}: {self.min_temperature}°C / {self.max_temperature}°C"
+        return f"{self.city} - {self.date}: {self.min_temperature}°C to {self.max_temperature}°C"
 
     def clean(self):
         """Валидация модели"""
@@ -67,8 +67,18 @@ class CustomForecast(models.Model):
                 raise ValidationError(
                     "Минимальная температура не может быть больше максимальной"
                 )
+        if self.city and self.date:
+            qs = CustomForecast.objects.filter(date=self.date, city__iexact=self.city)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(
+                    "Прогноз для этого города и даты уже существует (без учета регистра)"
+                )
 
     def save(self, *args, **kwargs):
         """Переопределяем save для вызова clean()"""
+        if self.city:
+            self.city = self.city.strip().title()
         self.clean()
         super().save(*args, **kwargs)

@@ -85,10 +85,12 @@ class OpenWeatherMapService:
                 else:
                     raise ExternalAPIException(f"Ошибка API: {e}")
 
+            except CityNotFoundException:
+                raise
+
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
-                if attempt == self.max_retries - 1:
-                    raise ExternalAPIException(f"Неожиданная ошибка: {e}")
+                raise ExternalAPIException(f"Неожиданная ошибка: {e}")
 
             if attempt < self.max_retries - 1:
                 time.sleep(self.retry_delay * (attempt + 1))

@@ -8,6 +8,7 @@ from .constants import (
     MAX_FORECAST_DAYS,
     ERROR_MESSAGES,
 )
+from django.db import IntegrityError
 
 
 class CityValidator:
@@ -80,14 +81,19 @@ class CurrentWeatherQuerySerializer(serializers.Serializer):
 class CurrentWeatherResponseSerializer(serializers.Serializer):
     """Сериализатор для ответа текущей погоды"""
 
-    temperature = serializers.DecimalField(
-        max_digits=5,
-        decimal_places=1,
-        help_text="Текущая температура в градусах Цельсия",
-    )
+    temperature = serializers.SerializerMethodField()
     local_time = serializers.CharField(
         max_length=5, help_text="Локальное время в формате HH:mm"
     )
+
+    def get_temperature(self, obj):
+        return (
+            float(obj["temperature"])
+            if isinstance(obj["temperature"], (float, int, str))
+            else float(obj["temperature"])
+            if obj["temperature"] is not None
+            else None
+        )
 
 
 class ForecastQuerySerializer(serializers.Serializer):
@@ -115,16 +121,26 @@ class ForecastQuerySerializer(serializers.Serializer):
 class ForecastResponseSerializer(serializers.Serializer):
     """Сериализатор для ответа прогноза"""
 
-    min_temperature = serializers.DecimalField(
-        max_digits=5,
-        decimal_places=1,
-        help_text="Минимальная температура в градусах Цельсия",
-    )
-    max_temperature = serializers.DecimalField(
-        max_digits=5,
-        decimal_places=1,
-        help_text="Максимальная температура в градусах Цельсия",
-    )
+    min_temperature = serializers.SerializerMethodField()
+    max_temperature = serializers.SerializerMethodField()
+
+    def get_min_temperature(self, obj):
+        return (
+            float(obj["min_temperature"])
+            if isinstance(obj["min_temperature"], (float, int, str))
+            else float(obj["min_temperature"])
+            if obj["min_temperature"] is not None
+            else None
+        )
+
+    def get_max_temperature(self, obj):
+        return (
+            float(obj["max_temperature"])
+            if isinstance(obj["max_temperature"], (float, int, str))
+            else float(obj["max_temperature"])
+            if obj["max_temperature"] is not None
+            else None
+        )
 
 
 class CustomForecastCreateSerializer(serializers.ModelSerializer):
@@ -137,6 +153,7 @@ class CustomForecastCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomForecast
         fields = ["city", "date", "min_temperature", "max_temperature"]
+        validators = []
 
     def validate_city(self, value):
         """Валидация города"""
@@ -164,17 +181,34 @@ class CustomForecastCreateSerializer(serializers.ModelSerializer):
         """Создание или обновление прогноза"""
         city = validated_data["city"]
         date_value = validated_data["date"]
+        min_temp = validated_data["min_temperature"]
+        max_temp = validated_data["max_temperature"]
 
-        forecast, created = CustomForecast.objects.update_or_create(
-            city=city,
-            date=date_value,
-            defaults={
-                "min_temperature": validated_data["min_temperature"],
-                "max_temperature": validated_data["max_temperature"],
-            },
-        )
+        try:
+            forecast = CustomForecast.objects.filter(city=city, date=date_value).first()
+            if forecast:
+                forecast.min_temperature = min_temp
+                forecast.max_temperature = max_temp
+            else:
+                forecast = CustomForecast(
+                    city=city,
+                    date=date_value,
+                    min_temperature=min_temp,
+                    max_temperature=max_temp,
+                )
+            forecast.full_clean()
+            forecast.save()
+            return forecast
+        except IntegrityError:
+            raise serializers.ValidationError(
+                {"non_field_errors": ["The fields city, date must make a unique set."]}
+            )
+        except Exception as e:
+            from django.core.exceptions import ValidationError as DjangoValidationError
 
-        return forecast
+            if isinstance(e, DjangoValidationError):
+                raise serializers.ValidationError(e.message_dict)
+            raise
 
 
 class ErrorResponseSerializer(serializers.Serializer):
