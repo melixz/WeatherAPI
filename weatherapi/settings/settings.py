@@ -2,8 +2,9 @@ from pathlib import Path
 from decouple import config, Csv
 import sys
 
+from weatherapi.weather.constants import CACHE_TIMEOUT_CURRENT_WEATHER, API_NAME, API_VERSION
+
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from weather.constants import API_VERSION, API_NAME, CACHE_TIMEOUT_CURRENT_WEATHER
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
