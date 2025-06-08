@@ -1,6 +1,4 @@
-from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.throttling import AnonRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.openapi import OpenApiTypes
@@ -15,18 +13,16 @@ from ..serializers import (
     ErrorResponseSerializer,
 )
 from ..services import weather_service
-from ..exceptions import WeatherAPIException
+from .base import ServiceAPIView
 
 logger = logging.getLogger(__name__)
 
 
-class CurrentWeatherView(APIView):
-    """
-    API эндпоинт для получения текущей погоды
-    GET /api/weather/current?city=London
-    """
-
+class CurrentWeatherView(ServiceAPIView):
     throttle_classes = [AnonRateThrottle]
+    input_serializer_class = CurrentWeatherQuerySerializer
+    output_serializer_class = CurrentWeatherResponseSerializer
+    service_method = staticmethod(weather_service.get_current_weather)
 
     @extend_schema(
         summary="Получить текущую погоду",
@@ -48,51 +44,17 @@ class CurrentWeatherView(APIView):
         },
         tags=["Weather"],
     )
-    def get(self, request):
-        """Получение текущей погоды"""
-
-        # Валидация query параметров
-        query_serializer = CurrentWeatherQuerySerializer(data=request.query_params)
-        if not query_serializer.is_valid():
-            return Response(
-                {
-                    "error": "Ошибка валидации параметров",
-                    "details": query_serializer.errors,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        city = query_serializer.validated_data["city"]
-
-        try:
-            weather_data = weather_service.get_current_weather(city)
-
-            response_serializer = CurrentWeatherResponseSerializer(data=weather_data)
-            response_serializer.is_valid(raise_exception=True)
-
-            logger.info(f"Successfully returned current weather for {city}")
-            return Response(
-                response_serializer.validated_data, status=status.HTTP_200_OK
-            )
-
-        except WeatherAPIException as e:
-            logger.error(f"Weather API error for city {city}: {e}")
-            return Response({"error": e.message}, status=e.status_code)
-        except Exception as e:
-            logger.error(f"Unexpected error in current weather for {city}: {e}")
-            return Response(
-                {"error": "Внутренняя ошибка сервера"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+    def get(self, request, *args, **kwargs):
+        return self.handle(request, *args, **kwargs)
 
 
-class ForecastView(APIView):
-    """
-    API эндпоинт для получения прогноза погоды
-    GET /api/weather/forecast?city=Paris&date=10.06.2025
-    """
-
+class ForecastView(ServiceAPIView):
     throttle_classes = [AnonRateThrottle]
+    input_serializer_class = ForecastQuerySerializer
+    output_serializer_class = ForecastResponseSerializer
+    service_method = staticmethod(
+        lambda city, date: weather_service.get_forecast(city, date.strftime("%Y-%m-%d"))
+    )
 
     @extend_schema(
         summary="Получить прогноз погоды",
@@ -121,54 +83,17 @@ class ForecastView(APIView):
         },
         tags=["Weather"],
     )
-    def get(self, request):
-        """Получение прогноза погоды"""
-
-        query_serializer = ForecastQuerySerializer(data=request.query_params)
-        if not query_serializer.is_valid():
-            return Response(
-                {
-                    "error": "Ошибка валидации параметров",
-                    "details": query_serializer.errors,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        city = query_serializer.validated_data["city"]
-        date_obj = query_serializer.validated_data["date"]
-
-        date_str = date_obj.strftime("%Y-%m-%d")
-
-        try:
-            forecast_data = weather_service.get_forecast(city, date_str)
-
-            response_serializer = ForecastResponseSerializer(data=forecast_data)
-            response_serializer.is_valid(raise_exception=True)
-
-            logger.info(f"Successfully returned forecast for {city} on {date_str}")
-            return Response(
-                response_serializer.validated_data, status=status.HTTP_200_OK
-            )
-
-        except WeatherAPIException as e:
-            logger.error(f"Weather API error for city {city} on {date_str}: {e}")
-            return Response({"error": e.message}, status=e.status_code)
-        except Exception as e:
-            logger.error(f"Unexpected error in forecast for {city} on {date_str}: {e}")
-            return Response(
-                {"error": "Внутренняя ошибка сервера"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+    def get(self, request, *args, **kwargs):
+        return self.handle(request, *args, **kwargs)
 
 
-class CombinedForecastView(APIView):
-    """
-    Комбинированный API эндпоинт для прогноза погоды
-    GET /api/weather/forecast?city=Paris&date=10.06.2025 - получить прогноз
-    POST /api/weather/forecast - создать/обновить пользовательский прогноз
-    """
-
+class CombinedForecastView(ServiceAPIView):
     throttle_classes = [AnonRateThrottle]
+    input_serializer_class = ForecastQuerySerializer
+    output_serializer_class = ForecastResponseSerializer
+    service_method = staticmethod(
+        lambda city, date: weather_service.get_forecast(city, date.strftime("%Y-%m-%d"))
+    )
 
     @extend_schema(
         summary="Получить прогноз погоды",
@@ -197,44 +122,8 @@ class CombinedForecastView(APIView):
         },
         tags=["Weather"],
     )
-    def get(self, request):
-        """Получение прогноза погоды"""
-
-        query_serializer = ForecastQuerySerializer(data=request.query_params)
-        if not query_serializer.is_valid():
-            return Response(
-                {
-                    "error": "Ошибка валидации параметров",
-                    "details": query_serializer.errors,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        city = query_serializer.validated_data["city"]
-        date_obj = query_serializer.validated_data["date"]
-
-        date_str = date_obj.strftime("%Y-%m-%d")
-
-        try:
-            forecast_data = weather_service.get_forecast(city, date_str)
-
-            response_serializer = ForecastResponseSerializer(data=forecast_data)
-            response_serializer.is_valid(raise_exception=True)
-
-            logger.info(f"Successfully returned forecast for {city} on {date_str}")
-            return Response(
-                response_serializer.validated_data, status=status.HTTP_200_OK
-            )
-
-        except WeatherAPIException as e:
-            logger.error(f"Weather API error for city {city} on {date_str}: {e}")
-            return Response({"error": e.message}, status=e.status_code)
-        except Exception as e:
-            logger.error(f"Unexpected error in forecast for {city} on {date_str}: {e}")
-            return Response(
-                {"error": "Внутренняя ошибка сервера"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+    def get(self, request, *args, **kwargs):
+        return self.handle(request, *args, **kwargs)
 
     @extend_schema(
         summary="Создать/обновить пользовательский прогноз",
@@ -247,44 +136,33 @@ class CombinedForecastView(APIView):
         },
         tags=["Weather"],
     )
-    def post(self, request):
-        """Создание/обновление пользовательского прогноза"""
-
+    def post(self, request, *args, **kwargs):
         serializer = CustomForecastCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {"error": "Ошибка валидации данных", "details": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            forecast = serializer.save()
-
-            response_data = {
-                "min_temperature": float(forecast.min_temperature),
-                "max_temperature": float(forecast.max_temperature),
-            }
-
-            response_status = status.HTTP_201_CREATED
-
-            logger.info(f"Custom forecast saved for {forecast.city} on {forecast.date}")
-            return Response(response_data, status=response_status)
-
-        except Exception as e:
-            logger.error(f"Error saving custom forecast: {e}")
-            return Response(
-                {"error": "Ошибка сохранения прогноза"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        result = weather_service.create_custom_forecast(
+            validated_data["city"],
+            validated_data["date"],
+            validated_data["min_temperature"],
+            validated_data["max_temperature"],
+        )
+        output_serializer = ForecastResponseSerializer(result)
+        return Response(output_serializer.data, status=201)
 
 
-class CustomForecastView(APIView):
-    """
-    API эндпоинт для создания/обновления пользовательского прогноза
-    POST /api/weather/forecast
-    """
-
+class CustomForecastView(ServiceAPIView):
     throttle_classes = [AnonRateThrottle]
+    input_serializer_class = CustomForecastCreateSerializer
+    output_serializer_class = ForecastResponseSerializer
+    service_method = staticmethod(
+        lambda city,
+        date,
+        min_temperature,
+        max_temperature: weather_service.create_custom_forecast(
+            city, date, min_temperature, max_temperature
+        )
+    )
+    success_status = 201
 
     @extend_schema(
         summary="Создать/обновить пользовательский прогноз",
@@ -297,32 +175,5 @@ class CustomForecastView(APIView):
         },
         tags=["Weather"],
     )
-    def post(self, request):
-        """Создание/обновление пользовательского прогноза"""
-
-        serializer = CustomForecastCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {"error": "Ошибка валидации данных", "details": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            forecast = serializer.save()
-
-            response_data = {
-                "min_temperature": float(forecast.min_temperature),
-                "max_temperature": float(forecast.max_temperature),
-            }
-
-            response_status = status.HTTP_201_CREATED
-
-            logger.info(f"Custom forecast saved for {forecast.city} on {forecast.date}")
-            return Response(response_data, status=response_status)
-
-        except Exception as e:
-            logger.error(f"Error saving custom forecast: {e}")
-            return Response(
-                {"error": "Ошибка сохранения прогноза"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+    def post(self, request, *args, **kwargs):
+        return self.handle(request, *args, **kwargs)
