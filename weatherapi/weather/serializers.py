@@ -18,7 +18,6 @@ class CityValidator:
                 "Название города должно содержать только английские буквы, пробелы и дефисы"
             )
 
-        # Проверка длины
         if len(city.strip()) < 2:
             raise serializers.ValidationError("Название города слишком короткое")
 

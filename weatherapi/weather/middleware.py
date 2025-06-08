@@ -55,7 +55,9 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         response["X-XSS-Protection"] = "1; mode=block"
         response["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        if request.path.startswith("/api/"):
+        if request.path.startswith("/api/") and not any(
+            path in request.path for path in ["/swagger-ui/", "/redoc/", "/schema/"]
+        ):
             response["Content-Security-Policy"] = "default-src 'none'"
 
         return response
