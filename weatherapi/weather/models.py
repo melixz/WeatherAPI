@@ -1,6 +1,12 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from .constants import (
+    CITY_NAME_MAX_LENGTH,
+    MIN_TEMPERATURE,
+    MAX_TEMPERATURE,
+)
+
 
 class CustomForecast(models.Model):
     """
@@ -9,7 +15,7 @@ class CustomForecast(models.Model):
     """
 
     city = models.CharField(
-        max_length=100,
+        max_length=CITY_NAME_MAX_LENGTH,
         verbose_name="Город",
         help_text="Название города на английском языке",
     )
@@ -21,14 +27,20 @@ class CustomForecast(models.Model):
         decimal_places=1,
         verbose_name="Минимальная температура",
         help_text="Минимальная температура в градусах Цельсия",
-        validators=[MinValueValidator(-100.0), MaxValueValidator(100.0)],
+        validators=[
+            MinValueValidator(MIN_TEMPERATURE),
+            MaxValueValidator(MAX_TEMPERATURE),
+        ],
     )
     max_temperature = models.DecimalField(
         max_digits=5,
         decimal_places=1,
         verbose_name="Максимальная температура",
         help_text="Максимальная температура в градусах Цельсия",
-        validators=[MinValueValidator(-100.0), MaxValueValidator(100.0)],
+        validators=[
+            MinValueValidator(MIN_TEMPERATURE),
+            MaxValueValidator(MAX_TEMPERATURE),
+        ],
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")

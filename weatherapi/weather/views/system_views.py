@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from datetime import datetime
 
+from ..constants import API_VERSION, API_NAME
+
 
 class HealthCheckView(APIView):
     """
@@ -31,7 +33,7 @@ class HealthCheckView(APIView):
             {
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
-                "version": "1.0.0",
+                "version": API_VERSION,
                 "services": {
                     "database": "connected",
                     "cache": "available",
@@ -59,8 +61,8 @@ class APIInfoView(APIView):
         """Информация об API"""
         return Response(
             {
-                "api_name": "Weather API",
-                "version": "1.0.0",
+                "api_name": API_NAME,
+                "version": API_VERSION,
                 "endpoints": {
                     "current_weather": {
                         "url": "/api/weather/current",

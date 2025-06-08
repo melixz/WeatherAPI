@@ -6,6 +6,8 @@ from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from rest_framework import status
 
+from .constants import API_VERSION, API_NAME
+
 logger = logging.getLogger(__name__)
 
 
@@ -102,7 +104,7 @@ class APIVersionMiddleware(MiddlewareMixin):
 
     def process_response(self, request, response):
         if request.path.startswith("/api/"):
-            response["X-API-Version"] = "1.0.0"
-            response["X-Service-Name"] = "Weather API"
+            response["X-API-Version"] = API_VERSION
+            response["X-Service-Name"] = API_NAME
 
         return response

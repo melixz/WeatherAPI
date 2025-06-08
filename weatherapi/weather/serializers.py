@@ -2,6 +2,12 @@ from rest_framework import serializers
 from datetime import datetime, date, timedelta
 import re
 from .models import CustomForecast
+from .constants import (
+    CITY_NAME_MAX_LENGTH,
+    CITY_NAME_MIN_LENGTH,
+    MAX_FORECAST_DAYS,
+    ERROR_MESSAGES,
+)
 
 
 class CityValidator:
@@ -11,18 +17,16 @@ class CityValidator:
     def validate_city_name(city):
         """Валидация названия города"""
         if not city or not city.strip():
-            raise serializers.ValidationError("Название города не может быть пустым")
+            raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
         if not re.match(r"^[a-zA-Z\s\-\'\.]+$", city.strip()):
-            raise serializers.ValidationError(
-                "Название города должно содержать только английские буквы, пробелы и дефисы"
-            )
+            raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
-        if len(city.strip()) < 2:
-            raise serializers.ValidationError("Название города слишком короткое")
+        if len(city.strip()) < CITY_NAME_MIN_LENGTH:
+            raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
-        if len(city.strip()) > 100:
-            raise serializers.ValidationError("Название города слишком длинное")
+        if len(city.strip()) > CITY_NAME_MAX_LENGTH:
+            raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
         return city.strip().title()
 
@@ -36,12 +40,12 @@ class DateValidator:
         today = date.today()
 
         if date_value < today:
-            raise serializers.ValidationError("Дата не может быть в прошлом")
+            raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
-        max_date = today + timedelta(days=10)
+        max_date = today + timedelta(days=MAX_FORECAST_DAYS)
         if date_value > max_date:
             raise serializers.ValidationError(
-                f"Дата не может быть больше чем на 10 дней вперед. "
+                f"Дата не может быть больше чем на {MAX_FORECAST_DAYS} дней вперед. "
                 f"Максимальная дата: {max_date.strftime('%d.%m.%Y')}"
             )
 
@@ -56,9 +60,7 @@ class TemperatureValidator:
         """Валидация диапазона температур"""
         if min_temp is not None and max_temp is not None:
             if min_temp > max_temp:
-                raise serializers.ValidationError(
-                    "Минимальная температура не может быть больше максимальной"
-                )
+                raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
         return min_temp, max_temp
 
@@ -67,7 +69,7 @@ class CurrentWeatherQuerySerializer(serializers.Serializer):
     """Сериализатор для query параметров текущей погоды"""
 
     city = serializers.CharField(
-        max_length=100, help_text="Название города на английском языке"
+        max_length=CITY_NAME_MAX_LENGTH, help_text="Название города на английском языке"
     )
 
     def validate_city(self, value):
@@ -92,7 +94,7 @@ class ForecastQuerySerializer(serializers.Serializer):
     """Сериализатор для query параметров прогноза"""
 
     city = serializers.CharField(
-        max_length=100, help_text="Название города на английском языке"
+        max_length=CITY_NAME_MAX_LENGTH, help_text="Название города на английском языке"
     )
     date = serializers.CharField(max_length=10, help_text="Дата в формате dd.MM.yyyy")
 
@@ -105,9 +107,7 @@ class ForecastQuerySerializer(serializers.Serializer):
         try:
             parsed_date = datetime.strptime(value, "%d.%m.%Y").date()
         except ValueError:
-            raise serializers.ValidationError(
-                "Неверный формат даты. Используйте формат dd.MM.yyyy (например: 30.06.2025)"
-            )
+            raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
         return DateValidator.validate_forecast_date(parsed_date)
 
@@ -147,9 +147,7 @@ class CustomForecastCreateSerializer(serializers.ModelSerializer):
         try:
             parsed_date = datetime.strptime(value, "%d.%m.%Y").date()
         except ValueError:
-            raise serializers.ValidationError(
-                "Неверный формат даты. Используйте формат dd.MM.yyyy (например: 30.06.2025)"
-            )
+            raise serializers.ValidationError(ERROR_MESSAGES["VALIDATION_ERROR"])
 
         return DateValidator.validate_forecast_date(parsed_date)
 

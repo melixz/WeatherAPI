@@ -6,6 +6,13 @@ import logging
 import time
 from typing import Dict, Optional, Tuple
 
+from ..constants import (
+    OPENWEATHER_REQUEST_TIMEOUT,
+    OPENWEATHER_MAX_RETRIES,
+    OPENWEATHER_RETRY_DELAY,
+    CACHE_TIMEOUT_CURRENT_WEATHER,
+    CACHE_TIMEOUT_FORECAST,
+)
 from ..exceptions import (
     ExternalAPIException,
     CityNotFoundException,
@@ -24,9 +31,9 @@ class OpenWeatherMapService:
     def __init__(self):
         self.api_key = settings.OPENWEATHER_API_KEY
         self.base_url = settings.OPENWEATHER_BASE_URL
-        self.timeout = 10
-        self.max_retries = 3
-        self.retry_delay = 1
+        self.timeout = OPENWEATHER_REQUEST_TIMEOUT
+        self.max_retries = OPENWEATHER_MAX_RETRIES
+        self.retry_delay = OPENWEATHER_RETRY_DELAY
 
         if not self.api_key:
             logger.warning("OpenWeatherMap API key not configured")
@@ -110,7 +117,7 @@ class OpenWeatherMapService:
         url = f"{self.base_url}/weather"
         params = {
             "q": city,
-            "units": "metric",  # Цельсий
+            "units": "metric",
             "lang": "en",
         }
 
@@ -125,7 +132,7 @@ class OpenWeatherMapService:
 
         result = {"temperature": temperature, "local_time": local_time_str}
 
-        cache.set(cache_key, result, 300)
+        cache.set(cache_key, result, CACHE_TIMEOUT_CURRENT_WEATHER)
 
         logger.info(f"Retrieved current weather for {city}: {temperature}°C")
         return result
@@ -170,7 +177,7 @@ class OpenWeatherMapService:
 
         result = {"min_temperature": min_temp, "max_temperature": max_temp}
 
-        cache.set(cache_key, result, 3600)
+        cache.set(cache_key, result, CACHE_TIMEOUT_FORECAST)
 
         logger.info(
             f"Retrieved forecast for {city} on {target_date}: {min_temp}°C - {max_temp}°C"

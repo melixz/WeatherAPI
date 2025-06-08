@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.exceptions import ValidationError as DjangoValidationError
 import logging
+from .constants import ERROR_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 class WeatherAPIException(Exception):
     """Базовое исключение для Weather API"""
 
-    default_message = "Произошла ошибка в Weather API"
+    default_message = ERROR_MESSAGES["INTERNAL_ERROR"]
     default_status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def __init__(self, message=None, status_code=None):
@@ -22,21 +23,21 @@ class WeatherAPIException(Exception):
 class CityNotFoundException(WeatherAPIException):
     """Исключение для случая когда город не найден"""
 
-    default_message = "Город не найден"
+    default_message = ERROR_MESSAGES["CITY_NOT_FOUND"]
     default_status_code = status.HTTP_404_NOT_FOUND
 
 
 class ExternalAPIException(WeatherAPIException):
     """Исключение для ошибок внешнего API"""
 
-    default_message = "Ошибка получения данных о погоде"
+    default_message = ERROR_MESSAGES["EXTERNAL_API_ERROR"]
     default_status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
 
 class ValidationException(WeatherAPIException):
     """Исключение для ошибок валидации"""
 
-    default_message = "Ошибка валидации данных"
+    default_message = ERROR_MESSAGES["VALIDATION_ERROR"]
     default_status_code = status.HTTP_400_BAD_REQUEST
 
 
@@ -61,12 +62,14 @@ def custom_exception_handler(exc, context):
     logger.error(f"Exception in {context.get('view', 'Unknown view')}: {exc}")
 
     if isinstance(exc, WeatherAPIException):
-        custom_response_data = {"error": exc.message}
+        custom_response_data = {
+            "error": exc.message or ERROR_MESSAGES["INTERNAL_ERROR"]
+        }
         return Response(custom_response_data, status=exc.status_code)
 
     if isinstance(exc, DjangoValidationError):
         custom_response_data = {
-            "error": "Ошибка валидации",
+            "error": ERROR_MESSAGES["VALIDATION_ERROR"],
             "details": exc.message_dict if hasattr(exc, "message_dict") else str(exc),
         }
         return Response(custom_response_data, status=status.HTTP_400_BAD_REQUEST)
@@ -75,23 +78,23 @@ def custom_exception_handler(exc, context):
         custom_response_data = {"error": "Произошла ошибка"}
 
         if response.status_code == status.HTTP_400_BAD_REQUEST:
-            custom_response_data["error"] = "Ошибка валидации данных"
+            custom_response_data["error"] = ERROR_MESSAGES["VALIDATION_ERROR"]
             if isinstance(response.data, dict):
                 custom_response_data["details"] = response.data
             else:
                 custom_response_data["details"] = str(response.data)
 
         elif response.status_code == status.HTTP_404_NOT_FOUND:
-            custom_response_data["error"] = "Ресурс не найден"
+            custom_response_data["error"] = ERROR_MESSAGES["CITY_NOT_FOUND"]
 
         elif response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED:
             custom_response_data["error"] = "Метод не разрешен"
 
         elif response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
-            custom_response_data["error"] = "Слишком много запросов. Попробуйте позже"
+            custom_response_data["error"] = ERROR_MESSAGES["RATE_LIMIT_EXCEEDED"]
 
         elif response.status_code >= 500:
-            custom_response_data["error"] = "Внутренняя ошибка сервера"
+            custom_response_data["error"] = ERROR_MESSAGES["INTERNAL_ERROR"]
 
         response.data = custom_response_data
 

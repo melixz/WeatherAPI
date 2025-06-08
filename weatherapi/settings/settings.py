@@ -1,8 +1,11 @@
 from pathlib import Path
 from decouple import config, Csv
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from weather.constants import API_VERSION, API_NAME, CACHE_TIMEOUT_CURRENT_WEATHER
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
@@ -137,7 +140,9 @@ CACHES = {
             "CACHE_BACKEND", default="django.core.cache.backends.locmem.LocMemCache"
         ),
         "LOCATION": config("CACHE_LOCATION", default="weather-api-cache"),
-        "TIMEOUT": config("CACHE_TIMEOUT", default=300, cast=int),
+        "TIMEOUT": config(
+            "CACHE_TIMEOUT", default=CACHE_TIMEOUT_CURRENT_WEATHER, cast=int
+        ),
         "OPTIONS": {
             "MAX_ENTRIES": config("CACHE_MAX_ENTRIES", default=1000, cast=int),
         },
@@ -145,9 +150,9 @@ CACHES = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Weather API",
+    "TITLE": API_NAME,
     "DESCRIPTION": "REST API для получения данных о погоде с возможностью переопределения прогнозов",
-    "VERSION": "1.0.0",
+    "VERSION": API_VERSION,
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": "/api/",
